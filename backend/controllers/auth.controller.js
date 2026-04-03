@@ -24,6 +24,33 @@ exports.register = async (req, res) => {
   }
 };
 
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { usr_id, usr_dob, new_pass } = req.body;
+    if (!usr_id || !usr_dob || !new_pass)
+      return res.status(400).json({ message: 'Mobile number, date of birth and new password are required.' });
+
+    const user = await User.findOne({ usr_id });
+    if (!user) return res.status(404).json({ message: 'No account found with this mobile number.' });
+
+    // Verify DOB matches
+    const storedDob = new Date(user.usr_dob).toISOString().substring(0, 10);
+    const inputDob  = new Date(usr_dob).toISOString().substring(0, 10);
+    if (storedDob !== inputDob)
+      return res.status(401).json({ message: 'Date of birth does not match our records.' });
+
+    if (new_pass.length < 6)
+      return res.status(400).json({ message: 'New password must be at least 6 characters.' });
+
+    user.usr_pass = await bcrypt.hash(new_pass, 10);
+    await user.save();
+
+    res.json({ message: 'Password reset successful. You can now login with your new password.' });
+  } catch {
+    res.status(500).json({ message: 'Server error during password reset.' });
+  }
+};
+
 exports.login = async (req, res) => {
   try {
     const { usr_id, usr_pass } = req.body;

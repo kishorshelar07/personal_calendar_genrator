@@ -7,6 +7,7 @@ import Header  from './components/Header';
 
 import Login    from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
 import Dashboard       from './pages/dashboard/Dashboard';
 import AdminDashboard  from './pages/admin/AdminDashboard';
 import AdminUsers      from './pages/admin/AdminUsers';
@@ -39,8 +40,9 @@ const App = () => {
   return (
     <Routes>
       {/* Public routes */}
-      <Route path="/login"    element={!token ? <Login />    : <Navigate to="/dashboard" replace />} />
-      <Route path="/register" element={!token ? <Register /> : <Navigate to="/dashboard" replace />} />
+      <Route path="/login"           element={!token ? <Login />          : <Navigate to="/dashboard" replace />} />
+      <Route path="/register"        element={!token ? <Register />       : <Navigate to="/dashboard" replace />} />
+      <Route path="/forgot-password" element={!token ? <ForgotPassword /> : <Navigate to="/dashboard" replace />} />
 
       {/* Protected + Layout — Layout renders once, Outlet swaps inner page */}
       <Route element={<ProtectedRoute />}>
