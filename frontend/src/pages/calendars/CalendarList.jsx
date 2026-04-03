@@ -7,26 +7,45 @@ import { useAuth } from '../../context/AuthContext';
 
 const TYPE_LABEL = { template_1:'1 Page', template_2:'12 Page', template_3:'3 Page' };
 const TYPE_ROUTE = { template_1:'template1', template_2:'template2', template_3:'template3' };
+
 const EMPTY_FORM = {
   usr_id:'', uc_msg:'', uc_date_event_csv:'', uc_event_details_csv:'',
   uc_num_page:1, uc_start_date:'', uc_end_date:'',
   uc_calendar_type:'template_1', uc_page_header:'', uc_page_footer:'', uc_remarks:''
 };
 
-/* ── Calendar Form Modal ── */
+// ── Reusable field components defined OUTSIDE any other component
+// so React doesn't re-create them on parent re-render (focus bug fix)
+const FormLabel = ({ children }) => (
+  <label className="form-label">{children}</label>
+);
+
+const FormInput = ({ value, onChange, ...rest }) => (
+  <input className="form-control-custom" value={value} onChange={onChange} {...rest} />
+);
+
+const FormSelect = ({ value, onChange, children, ...rest }) => (
+  <select className="form-control-custom" value={value} onChange={onChange} {...rest}>
+    {children}
+  </select>
+);
+
+// ─────────────────────────────────────────────────────────────
+// Calendar Add / Edit Modal
+// ─────────────────────────────────────────────────────────────
 const CalModal = ({ mode, data, userId, onSave, onClose }) => {
   const isEdit = mode === 'edit';
-  const [form, setForm]     = useState({ ...EMPTY_FORM, usr_id: userId });
+  const [form, setForm]       = useState({ ...EMPTY_FORM, usr_id: userId });
   const [loading, setLoading] = useState(false);
-  const [error, setError]   = useState('');
+  const [error,   setError]   = useState('');
   const [newDate, setNewDate] = useState('');
-  const s = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   useEffect(() => {
     if (isEdit && data) {
       setForm({
-        ...EMPTY_FORM,
-        ...data,
+        ...EMPTY_FORM, ...data,
         uc_start_date: data.uc_start_date?.substring(0,10) || '',
         uc_end_date:   data.uc_end_date?.substring(0,10)   || '',
       });
@@ -50,9 +69,7 @@ const CalModal = ({ mode, data, userId, onSave, onClose }) => {
   const handleSubmit = async e => {
     e.preventDefault(); setError(''); setLoading(true);
     try {
-      isEdit
-        ? await updateCalendar(data._id, form)
-        : await addCalendar(form);
+      isEdit ? await updateCalendar(data._id, form) : await addCalendar(form);
       toast.success(`Calendar ${isEdit ? 'updated' : 'created'}!`);
       onSave();
     } catch (err) {
@@ -60,103 +77,134 @@ const CalModal = ({ mode, data, userId, onSave, onClose }) => {
     } finally { setLoading(false); }
   };
 
-  const Label = ({ children }) => <label className="form-label">{children}</label>;
-  const Input = ({ k, ...rest }) => (
-    <input className="form-control-custom" value={form[k]} onChange={s(k)} {...rest} />
-  );
-
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-box" style={{ maxWidth: 700 }}>
         <div className="modal-header">
           <span className="modal-title">
-            <i className="bx bx-calendar-plus me-2" style={{ color:'var(--blue)' }}></i>
+            <i className="bx bx-calendar-plus" style={{ color:'var(--blue)' }}></i>
             {isEdit ? 'Edit Calendar' : 'Create New Calendar'}
           </span>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
+
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
-            {error && <div className="alert-error">{error}</div>}
+            {error && <div className="alert-error"><i className="bi bi-exclamation-circle me-2"/>{error}</div>}
 
             <div className="form-row">
               <div className="form-group">
-                <Label>User ID (Mobile)</Label>
-                <Input k="usr_id" disabled={true} />
+                <FormLabel>User ID</FormLabel>
+                <FormInput value={form.usr_id} onChange={set('usr_id')} disabled />
               </div>
               <div className="form-group">
-                <Label>Message / Title</Label>
-                <Input k="uc_msg" placeholder="e.g. Family Calendar 2025" maxLength={100} />
+                <FormLabel>Message / Title</FormLabel>
+                <FormInput
+                  value={form.uc_msg}
+                  onChange={set('uc_msg')}
+                  placeholder="e.g. Family Calendar 2025"
+                  maxLength={100}
+                />
               </div>
             </div>
 
             <div className="form-group">
-              <Label>Event Dates — click "Add" to append each date</Label>
+              <FormLabel>Event Dates — pick a date then click Add</FormLabel>
               <div style={{ display:'flex', gap:8, marginBottom:6 }}>
                 <input
-                  type="date" className="form-control-custom" style={{ flex:1 }}
-                  value={newDate} onChange={e => setNewDate(e.target.value)}
+                  type="date"
+                  className="form-control-custom"
+                  style={{ flex:1 }}
+                  value={newDate}
+                  onChange={e => setNewDate(e.target.value)}
                 />
-                <button type="button" onClick={addDate} className="btn-primary-custom">
-                  Add Date
+                <button type="button" className="btn-primary-custom" onClick={addDate}>
+                  + Add
                 </button>
               </div>
-              <Input k="uc_date_event_csv" placeholder="2025/01/01, 2025/08/15 …" />
+              <FormInput
+                value={form.uc_date_event_csv}
+                onChange={set('uc_date_event_csv')}
+                placeholder="2025/01/01, 2025/08/15 …"
+              />
             </div>
 
             <div className="form-group">
-              <Label>Event Labels (comma-separated, same order as dates)</Label>
-              <Input k="uc_event_details_csv" placeholder="New Year, Independence Day …" />
+              <FormLabel>Event Labels (comma-separated, same order as dates)</FormLabel>
+              <FormInput
+                value={form.uc_event_details_csv}
+                onChange={set('uc_event_details_csv')}
+                placeholder="New Year, Independence Day …"
+              />
             </div>
 
             <div className="form-row">
               <div className="form-group">
-                <Label>Start Date</Label>
-                <Input k="uc_start_date" type="date" />
+                <FormLabel>Start Date</FormLabel>
+                <FormInput type="date" value={form.uc_start_date} onChange={set('uc_start_date')} />
               </div>
               <div className="form-group">
-                <Label>End Date</Label>
-                <Input k="uc_end_date" type="date" />
+                <FormLabel>End Date</FormLabel>
+                <FormInput type="date" value={form.uc_end_date} onChange={set('uc_end_date')} />
               </div>
             </div>
 
             <div className="form-row">
               <div className="form-group">
-                <Label>Calendar Type</Label>
-                <select className="form-control-custom" value={form.uc_calendar_type} onChange={s('uc_calendar_type')}>
+                <FormLabel>Calendar Type</FormLabel>
+                <FormSelect value={form.uc_calendar_type} onChange={set('uc_calendar_type')}>
                   <option value="template_1">Template 1 — 1 Page (all months)</option>
                   <option value="template_2">Template 2 — 12 Pages (one/month)</option>
                   <option value="template_3">Template 3 — 3 Pages (4 months/page)</option>
-                </select>
+                </FormSelect>
               </div>
               <div className="form-group">
-                <Label>Number of Pages</Label>
-                <select className="form-control-custom" value={form.uc_num_page} onChange={s('uc_num_page')}>
+                <FormLabel>Number of Pages</FormLabel>
+                <FormSelect value={form.uc_num_page} onChange={set('uc_num_page')}>
                   <option value={1}>1</option>
                   <option value={3}>3</option>
                   <option value={12}>12</option>
-                </select>
+                </FormSelect>
               </div>
             </div>
 
             <div className="form-row">
               <div className="form-group">
-                <Label>Page Header</Label>
-                <Input k="uc_page_header" placeholder="Header text" maxLength={100} />
+                <FormLabel>Page Header</FormLabel>
+                <FormInput
+                  value={form.uc_page_header}
+                  onChange={set('uc_page_header')}
+                  placeholder="Header text"
+                  maxLength={100}
+                />
               </div>
               <div className="form-group">
-                <Label>Page Footer</Label>
-                <Input k="uc_page_footer" placeholder="Footer text" maxLength={100} />
+                <FormLabel>Page Footer</FormLabel>
+                <FormInput
+                  value={form.uc_page_footer}
+                  onChange={set('uc_page_footer')}
+                  placeholder="Footer text"
+                  maxLength={100}
+                />
               </div>
             </div>
 
             <div className="form-group">
-              <Label>Remarks</Label>
-              <Input k="uc_remarks" placeholder="Internal notes" maxLength={100} />
+              <FormLabel>Remarks</FormLabel>
+              <FormInput
+                value={form.uc_remarks}
+                onChange={set('uc_remarks')}
+                placeholder="Internal notes"
+                maxLength={100}
+              />
             </div>
           </div>
+
           <div className="modal-footer">
-            <button type="button" onClick={onClose} style={{ padding:'9px 20px', borderRadius:8, border:'1px solid var(--border)', background:'none', cursor:'pointer', fontFamily:'Outfit,sans-serif' }}>
+            <button
+              type="button" onClick={onClose}
+              style={{ padding:'9px 20px', borderRadius:8, border:'1px solid var(--border)', background:'none', cursor:'pointer', fontFamily:'Outfit,sans-serif', fontSize:14 }}
+            >
               Cancel
             </button>
             <button type="submit" disabled={loading} className="btn-primary-custom">
@@ -169,32 +217,38 @@ const CalModal = ({ mode, data, userId, onSave, onClose }) => {
   );
 };
 
-/* ── Image Manager Modal ── */
+// ─────────────────────────────────────────────────────────────
+// Image Manager Modal
+// ─────────────────────────────────────────────────────────────
 const ImgModal = ({ calendar, onClose, onRefresh }) => {
-  const [images, setImages]  = useState(
+  const [images, setImages]     = useState(
     calendar?.uc_img_csv ? calendar.uc_img_csv.split(',').map(s=>s.trim()).filter(Boolean) : []
   );
-  const [files,    setFiles]    = useState([]);
-  const [previews, setPreviews] = useState([]);
+  const [files,     setFiles]     = useState([]);
+  const [previews,  setPreviews]  = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [error, setError]        = useState('');
+  const [error,     setError]     = useState('');
   const fileRef = useRef(null);
 
   const handleSelect = e => {
     const selected = Array.from(e.target.files);
     const rem = 24 - images.length;
     if (selected.length > rem) { setError(`Only ${rem} more image(s) allowed.`); return; }
-    setError(''); setFiles(selected);
+    setError('');
+    setFiles(selected);
     const prevs = [];
     selected.forEach(f => {
       const r = new FileReader();
-      r.onload = ev => { prevs.push(ev.target.result); if (prevs.length === selected.length) setPreviews([...prevs]); };
+      r.onload = ev => {
+        prevs.push(ev.target.result);
+        if (prevs.length === selected.length) setPreviews([...prevs]);
+      };
       r.readAsDataURL(f);
     });
   };
 
   const handleUpload = async () => {
-    if (!files.length) { setError('Select at least one image.'); return; }
+    if (!files.length) { setError('Please select at least one image.'); return; }
     setUploading(true); setError('');
     try {
       const fd = new FormData();
@@ -202,14 +256,14 @@ const ImgModal = ({ calendar, onClose, onRefresh }) => {
       const res = await uploadImages(fd, calendar._id);
       const updated = res.data.updated_uc_img_csv
         ? res.data.updated_uc_img_csv.split(',').map(s=>s.trim()).filter(Boolean)
-        : images;
+        : [...images, ...res.data.uploaded_files];
       setImages(updated);
       setFiles([]); setPreviews([]);
       if (fileRef.current) fileRef.current.value = '';
       toast.success(`${res.data.uploaded_files.length} image(s) uploaded!`);
       onRefresh();
     } catch (err) {
-      setError(err.response?.data?.message || 'Upload failed.');
+      setError(err.response?.data?.message || 'Upload failed. Please try again.');
     } finally { setUploading(false); }
   };
 
@@ -225,73 +279,99 @@ const ImgModal = ({ calendar, onClose, onRefresh }) => {
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal-box" style={{ maxWidth: 700 }}>
+      <div className="modal-box" style={{ maxWidth: 720 }}>
         <div className="modal-header">
           <span className="modal-title">
-            <i className="bi bi-images me-2" style={{ color:'var(--blue)' }}></i>
-            Manage Images — {images.length} / 24
+            <i className="bi bi-images" style={{ color:'var(--blue)' }}></i>
+            &nbsp;Manage Images — {images.length} / 24
           </span>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body">
-          {/* Existing images */}
           {images.length > 0 ? (
             <div style={{ display:'flex', gap:10, overflowX:'auto', paddingBottom:10, marginBottom:16 }}>
               {images.map(fn => (
                 <div key={fn} style={{ position:'relative', flexShrink:0 }}>
-                  <img src={getImageUrl(fn)} alt={fn}
-                    style={{ width:120, height:120, objectFit:'cover', borderRadius:8, border:'1px solid var(--border)' }}
+                  <img
+                    src={getImageUrl(fn)} alt={fn}
+                    style={{ width:130, height:130, objectFit:'cover', borderRadius:8, border:'1px solid var(--border)' }}
                     onError={e => { e.target.style.opacity='0.2'; }}
                   />
                   <button
                     onClick={() => handleDelete(fn)}
-                    style={{ position:'absolute', top:4, right:4, width:22, height:22, borderRadius:'50%', background:'#ef4444', color:'#fff', border:'none', cursor:'pointer', fontSize:12, display:'flex', alignItems:'center', justifyContent:'center' }}
+                    title="Remove image"
+                    style={{ position:'absolute', top:4, right:4, width:22, height:22, borderRadius:'50%', background:'#ef4444', color:'#fff', border:'none', cursor:'pointer', fontSize:13, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700 }}
                   >✕</button>
+                  <div style={{ fontSize:10, color:'var(--text-3)', marginTop:3, maxWidth:130, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                    {fn}
+                  </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div style={{ textAlign:'center', padding:'24px 0', color:'var(--text-3)', marginBottom:16 }}>
+            <div style={{ textAlign:'center', padding:'24px 0', color:'var(--text-3)', marginBottom:16, background:'var(--bg)', borderRadius:8 }}>
               <i className="bi bi-image" style={{ fontSize:32, display:'block', marginBottom:8 }}></i>
-              No images yet
+              No images uploaded yet
             </div>
           )}
 
-          {/* Upload section */}
           {images.length < 24 && (
             <div style={{ borderTop:'1px solid var(--border)', paddingTop:16 }}>
+              <p style={{ fontSize:13, fontWeight:500, color:'var(--text-2)', marginBottom:10 }}>
+                Upload New Images &nbsp;
+                <span style={{ color:'var(--text-3)', fontWeight:400 }}>
+                  (max {24 - images.length} more, JPEG/PNG, up to 10MB each)
+                </span>
+              </p>
               {error && <div className="alert-error" style={{ marginBottom:12 }}>{error}</div>}
-              <input type="file" ref={fileRef} multiple accept="image/jpeg,image/png,image/jpg"
-                onChange={handleSelect} style={{ marginBottom:12, width:'100%' }} />
+              <input
+                ref={fileRef}
+                type="file"
+                multiple
+                accept="image/jpeg,image/png,image/jpg,image/webp"
+                onChange={handleSelect}
+                style={{ marginBottom:12, width:'100%', fontSize:14 }}
+              />
               {previews.length > 0 && (
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:12 }}>
                   {previews.map((src,i) => (
-                    <img key={i} src={src} alt="" style={{ width:70, height:70, objectFit:'cover', borderRadius:6, border:'1px solid var(--border)' }} />
+                    <img key={i} src={src} alt=""
+                      style={{ width:70, height:70, objectFit:'cover', borderRadius:6, border:'1px solid var(--border)' }}
+                    />
                   ))}
                 </div>
               )}
-              <button className="btn-primary-custom" onClick={handleUpload} disabled={uploading || !files.length}>
-                {uploading ? <><span className="spinner" style={{ width:14, height:14, border:'2px solid rgba(255,255,255,.3)', borderTopColor:'#fff', display:'inline-block', borderRadius:'50%', animation:'spin .7s linear infinite', marginRight:8 }}></span>Uploading…</> : <><i className="bi bi-cloud-upload me-2"></i>Upload Images</>}
+              <button
+                className="btn-primary-custom"
+                onClick={handleUpload}
+                disabled={uploading || !files.length}
+              >
+                {uploading
+                  ? <><span style={{ width:14,height:14,borderRadius:'50%',border:'2px solid rgba(255,255,255,.3)',borderTopColor:'#fff',display:'inline-block',animation:'spin .7s linear infinite',marginRight:8 }}></span>Uploading…</>
+                  : <><i className="bi bi-cloud-upload me-2"></i>Upload {files.length > 0 ? `${files.length} Image(s)` : 'Images'}</>
+                }
               </button>
             </div>
           )}
         </div>
         <div className="modal-footer">
-          <button onClick={onClose} className="btn-primary-custom">Done</button>
+          <button className="btn-primary-custom" onClick={onClose}>Done</button>
         </div>
       </div>
     </div>
   );
 };
 
-/* ── Main List ── */
+// ─────────────────────────────────────────────────────────────
+// Main CalendarList page
+// ─────────────────────────────────────────────────────────────
 const CalendarList = () => {
-  const { user } = useAuth();
+  const { user }  = useAuth();
   const navigate  = useNavigate();
   const [calendars, setCalendars] = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [search,    setSearch]    = useState('');
-  const [modal,     setModal]     = useState(null); // null | 'add' | 'edit'
+  const [modal,     setModal]     = useState(null);
   const [selCal,    setSelCal]    = useState(null);
   const [imgCal,    setImgCal]    = useState(null);
 
@@ -310,23 +390,29 @@ const CalendarList = () => {
     catch (e) { toast.error(e.response?.data?.message || 'Delete failed.'); }
   };
 
-  const fmt = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
+  const fmt  = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
   const imgs = csv => csv ? csv.split(',').map(s=>s.trim()).filter(Boolean) : [];
 
   const displayed = search.trim()
-    ? calendars.filter(c => c.usr_id?.includes(search) || c.uc_msg?.toLowerCase().includes(search.toLowerCase()))
+    ? calendars.filter(c =>
+        c.usr_id?.includes(search) ||
+        c.uc_msg?.toLowerCase().includes(search.toLowerCase())
+      )
     : calendars;
 
   return (
     <div>
-      {/* Header */}
+      {/* Banner */}
       <div style={{ background:'linear-gradient(135deg,#0369a1,#3b82f6)', borderRadius:'var(--radius)', padding:'22px 28px', marginBottom:24, color:'#fff', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
         <div>
           <h2 style={{ fontFamily:'Syne,sans-serif', fontSize:22, fontWeight:700, margin:0 }}>My Calendars</h2>
           <p style={{ margin:'4px 0 0', opacity:.8, fontSize:13 }}>Create and generate beautiful calendars</p>
         </div>
-        <button className="btn-primary-custom" style={{ background:'rgba(255,255,255,.2)', backdropFilter:'blur(4px)', border:'1px solid rgba(255,255,255,.3)' }}
-          onClick={() => { setSelCal(null); setModal('add'); }}>
+        <button
+          className="btn-primary-custom"
+          style={{ background:'rgba(255,255,255,.2)', backdropFilter:'blur(4px)', border:'1px solid rgba(255,255,255,.3)' }}
+          onClick={() => { setSelCal(null); setModal('add'); }}
+        >
           <i className="bi bi-plus-lg"></i> New Calendar
         </button>
       </div>
@@ -334,7 +420,11 @@ const CalendarList = () => {
       {/* Search */}
       <div style={{ marginBottom:16, display:'flex', justifyContent:'flex-end' }}>
         <div className="search-bar" style={{ width:260 }}>
-          <input placeholder="Search calendars…" value={search} onChange={e => setSearch(e.target.value)} />
+          <input
+            placeholder="Search calendars…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
           <button><i className="bi bi-search"></i></button>
         </div>
       </div>
@@ -346,7 +436,7 @@ const CalendarList = () => {
             <thead>
               <tr>
                 <th>#</th><th>Message</th><th>Type</th><th>Date Range</th>
-                <th>Events</th><th>Images</th><th>Header/Footer</th><th>Actions</th>
+                <th>Events</th><th>Images</th><th>Header / Footer</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -378,7 +468,7 @@ const CalendarList = () => {
                     <td style={{ fontSize:12, color:'var(--text-2)', whiteSpace:'nowrap' }}>
                       {fmt(cal.uc_start_date)} →<br/>{fmt(cal.uc_end_date)}
                     </td>
-                    <td style={{ fontSize:12, color:'var(--text-2)', maxWidth:120 }}>
+                    <td style={{ fontSize:12, color:'var(--text-2)', maxWidth:130 }}>
                       {cal.uc_event_details_csv
                         ? cal.uc_event_details_csv.split(',').slice(0,2).join(', ')
                           + (cal.uc_event_details_csv.split(',').length > 2 ? '…' : '')
@@ -388,13 +478,17 @@ const CalendarList = () => {
                       <div style={{ display:'flex', gap:4, alignItems:'center', flexWrap:'wrap' }}>
                         {calImgs.slice(0,3).map(fn => (
                           <img key={fn} src={getImageUrl(fn)} alt="" className="thumb"
-                            onError={e => { e.target.style.opacity='0.2'; }} />
+                            onError={e => { e.target.style.opacity='.2'; }} />
                         ))}
                         {calImgs.length > 3 && (
                           <span style={{ fontSize:11, color:'var(--text-3)' }}>+{calImgs.length-3}</span>
                         )}
-                        <button className="btn-icon" style={{ color:'var(--blue)', borderColor:'var(--blue)' }}
-                          onClick={() => setImgCal(cal)} title="Manage Images">
+                        <button
+                          className="btn-icon"
+                          style={{ color:'var(--blue)', borderColor:'var(--blue)' }}
+                          onClick={() => setImgCal(cal)}
+                          title="Manage Images"
+                        >
                           <i className="bi bi-cloud-upload"></i>
                         </button>
                       </div>
@@ -416,8 +510,10 @@ const CalendarList = () => {
                             <i className="bi bi-trash"></i>
                           </button>
                         </div>
-                        <button className="gen-btn"
-                          onClick={() => navigate(`/cal-design/${TYPE_ROUTE[cal.uc_calendar_type] || 'template1'}/${cal._id}`)}>
+                        <button
+                          className="gen-btn"
+                          onClick={() => navigate(`/cal-design/${TYPE_ROUTE[cal.uc_calendar_type] || 'template1'}/${cal._id}`)}
+                        >
                           <i className="bi bi-calendar3"></i> Generate
                         </button>
                       </div>
@@ -433,7 +529,9 @@ const CalendarList = () => {
       {/* Modals */}
       {modal && (
         <CalModal
-          mode={modal} data={selCal} userId={user?.usr_id}
+          mode={modal}
+          data={selCal}
+          userId={user?.usr_id}
           onSave={() => { setModal(null); fetch(); }}
           onClose={() => setModal(null)}
         />
