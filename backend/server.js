@@ -6,7 +6,23 @@ const connectDB = require('./config/db');
 
 const app = express();
 
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+// ✅ CORS fix — both localhost & Vercel allow
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://personal-calendar-genrator.vercel.app'
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -19,4 +35,4 @@ app.use('/api/upload',    require('./routes/upload.routes'));
 app.get('/api/health', (_, res) => res.json({ status: 'ok' }));
 
 const PORT = process.env.PORT || 5000;
-connectDB().then(() => app.listen(PORT, () => console.log(`🚀 Server on http://localhost:${PORT}`)));
+connectDB().then(() => app.listen(PORT, () => console.log(`🚀 Server on port ${PORT}`)));
