@@ -5,19 +5,19 @@ import { ProtectedRoute, AdminRoute } from './components/ProtectedRoute';
 import Sidebar from './components/Sidebar';
 import Header  from './components/Header';
 
-import Login    from './pages/auth/Login';
-import Register from './pages/auth/Register';
+import Landing       from './pages/Landing';
+import Login         from './pages/auth/Login';
+import Register      from './pages/auth/Register';
 import ForgotPassword from './pages/auth/ForgotPassword';
-import Dashboard       from './pages/dashboard/Dashboard';
-import AdminDashboard  from './pages/admin/AdminDashboard';
-import AdminUsers      from './pages/admin/AdminUsers';
-import AdminCalendars  from './pages/admin/AdminCalendars';
-import CalendarList    from './pages/calendars/CalendarList';
+import Dashboard      from './pages/dashboard/Dashboard';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminUsers     from './pages/admin/AdminUsers';
+import AdminCalendars from './pages/admin/AdminCalendars';
+import CalendarList   from './pages/calendars/CalendarList';
 import Template1 from './pages/cal_design/Template1';
 import Template2 from './pages/cal_design/Template2';
 import Template3 from './pages/cal_design/Template3';
 
-// Layout uses Outlet — created ONCE, state persists across all page navigations
 const Layout = () => {
   const [open, setOpen] = useState(false);
   return (
@@ -39,12 +39,15 @@ const App = () => {
 
   return (
     <Routes>
-      {/* Public routes */}
+      {/* ── Landing page — always public ── */}
+      <Route path="/" element={<Landing />} />
+
+      {/* ── Auth routes — redirect to dashboard if already logged in ── */}
       <Route path="/login"           element={!token ? <Login />          : <Navigate to="/dashboard" replace />} />
       <Route path="/register"        element={!token ? <Register />       : <Navigate to="/dashboard" replace />} />
       <Route path="/forgot-password" element={!token ? <ForgotPassword /> : <Navigate to="/dashboard" replace />} />
 
-      {/* Protected + Layout — Layout renders once, Outlet swaps inner page */}
+      {/* ── Protected user routes ── */}
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<Dashboard />} />
@@ -55,7 +58,7 @@ const App = () => {
         </Route>
       </Route>
 
-      {/* Admin only routes */}
+      {/* ── Admin only routes ── */}
       <Route element={<AdminRoute />}>
         <Route element={<Layout />}>
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
@@ -64,8 +67,8 @@ const App = () => {
         </Route>
       </Route>
 
-      <Route path="/"  element={<Navigate to={token ? '/dashboard' : '/login'} replace />} />
-      <Route path="*"  element={<Navigate to="/" replace />} />
+      {/* ── Fallback ── */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };
